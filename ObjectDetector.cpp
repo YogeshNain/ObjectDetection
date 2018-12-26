@@ -1,5 +1,6 @@
 #include "ObjectDetector.h"
-
+using namespace cv;
+using namespace std;
 
 
 ObjectDetector::ObjectDetector()
@@ -14,14 +15,17 @@ ObjectDetector::~ObjectDetector()
 void ObjectDetector::loaddetectFile(std::string fname)
 {
 	detector.load(fname);
-	std::cout << "\nWin Size : " << detector.winSize;
 }
 
 void ObjectDetector::verifySVM()
 {
 	string verify = "vef";
+	cout << "\nVerification data folder : ";
+	cin >> verify;
+	cout << "\nRunning matrix calculation on : " << verify << " folder";
 	vector<String> files;
 	glob(verify + "\\*.png", files);
+	int pos = 0, neg = 0;
 	for (size_t i = 0; i < files.size(); ++i)
 	{
 		Mat im = imread(files[i]);
@@ -33,12 +37,21 @@ void ObjectDetector::verifySVM()
 		Mat inp = Mat(descp);
 		in.push_back(inp);
 		Mat dsc = m_convertToMat(in);
-		float pb = svmapi->predict(dsc, res);
-		cout << "\nRes : " << res << " pb : "<< pb;
-		imshow("Plate", im);
-		if(waitKey() == 'q')
-			break;
+		svmapi->predict(dsc, res);
+		float pb = res.at<float>(0, 0);
+		//cout << "\nRes : " << pb;
+		if (pb > 0.50)
+			++pos;
+		else
+			++neg;
+		//imshow("Plate", im);
+		//if(waitKey(1) == 'q')
+		//	break;
 	}
+	cout << "\nAccuracy matrix : ";
+	float accper = (pos /(float)files.size());
+	cout << "\nPositive : " << accper <<" %";
+	cout << "\nNegative : " << 1 - accper;
 }
 
 void ObjectDetector::setsize(int h, int w)
@@ -125,9 +138,9 @@ vector<float> ObjectDetector::getSVMDescriptors(cv::Ptr<cv::ml::SVM>& svm)
 	return hog_detector;
 }
 
-void ObjectDetector::detectobj(cv::Mat _inpimg,std::vector<cv::Rect>& objbbox, std::vector<double>& prob)
+void ObjectDetector::detectobj(cv::Mat _inpimg,std::vector<cv::Rect>& objbbox, std::vector<double>& prob, float scale)
 {
-	detector.detectMultiScale(_inpimg, objbbox, prob);// , 0.0, Size(), Size(), 1.0);
+	detector.detectMultiScale(_inpimg, objbbox, prob , 0.0, Size(), Size(), scale);
 }
 
 cv::Mat ObjectDetector::m_convertToMat(std::vector<cv::Mat> hogimg)
@@ -161,10 +174,10 @@ int ObjectDetector::computeHog(std::vector<cv::Mat> images, std::vector<cv::Mat>
 	detector.cellSize = cellsize;
 	detector.blockSize = mblockSize;
 	detector.blockStride = mblockStride;
-	detector.nbins = 9;
-	detector.gammaCorrection = false;
+	detector.nbins = 11;
+	detector.gammaCorrection = true;
 	detector.winSize = objSize;
-
+	
 	std::vector<float> hogDescrib;
 	for (int i = 0; i < (int)images.size(); ++i)
 	{
